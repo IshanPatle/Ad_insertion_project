@@ -4,6 +4,7 @@ import subprocess
 import atexit
 import ffmpeg
 import os
+import sys
 
 
 #-------------------------------------------------global values
@@ -53,20 +54,52 @@ def video_to_hls():
     hls.output(root+out+'.m3u8')
     atexit.register(print, "Video conversion successfully!")
 
-#--------------------------------------------------input parameters from user
+def hls_enc():
+    #A path you want to save a random key to your local machine
+    save_to = '/home/public_html/"PATH TO THE KEY DIRECTORY"/key'
+
+    #A URL (or a path) to access the key on your website
+    url = 'https://www.aminyazdanpanah.com/?"PATH TO THE KEY DIRECTORY"/key'
+    # or url = '/"PATH TO THE KEY DIRECTORY"/key';
+
+    hls = video.hls(Formats.h264())
+    hls.encryption(save_to, url)
+    hls.auto_generate_representations()
+    hls.output('/var/media/hls.m3u8')
+
+
+def create_hls_playlist():
+    command = '''ffmpeg -y -i 2.mp4 -hls_time 5 -hls_key_info_file enc.keyinfo.txt -hls_playlist_type vod -hls_segment_filename "v%v/segment%d.ts" v%v/index.m3u8'''
+    subprocess.run(command)
+    atexit.register(print, "Hls playlist creation complete!")
+
+
+# --------------------------------------------------input parameters from user #DRIVER CODE#
 
 print('''THIS IS A POC CODE FOR AD-INSERTION
-Please enter you preference for video conversion 
+Please enter you preference for video conversion
 Select:
 1 - for DASH conversion
 2 - for HLS conversion
 ''')
+
+def playlist_driver():
+    user_input_sub = input("Do you want to create a playlist for HLS live streaming (y/n): ")
+    if user_input_sub == 'y':
+        create_hls_playlist()
+    if user_input_sub == 'n':
+        sys.exit(0)
+
+
+
 user_input = int(input("Please enter your preference: "))
 if user_input == 1:
     print('You selected video conversion to DASH format. Please wait while the file is being converted...')
     video_to_dash()
+    playlist_driver()
 
 if user_input == 2:
     print('You selected video conversion to HLS format. Please wait while the file is being converted...')
     video_to_hls()
+    playlist_driver()
 
