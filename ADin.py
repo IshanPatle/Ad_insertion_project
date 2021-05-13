@@ -1,11 +1,12 @@
 import ffmpeg_streaming
 from ffmpeg_streaming import Formats, Bitrate, Representation, Size
+import urllib3, hashlib, time, json, base64
 import subprocess
 import atexit
 import ffmpeg
 import os
 import sys
-
+import scte
 
 #-------------------------------------------------global values
 
@@ -59,7 +60,7 @@ def hls_enc():
     save_to = '/home/public_html/"PATH TO THE KEY DIRECTORY"/key'
 
     #A URL (or a path) to access the key on your website
-    url = 'https://www.aminyazdanpanah.com/?"PATH TO THE KEY DIRECTORY"/key'
+    url = 'http://www.localhost.com/?"PATH TO THE KEY DIRECTORY"/key'
     # or url = '/"PATH TO THE KEY DIRECTORY"/key';
 
     hls = video.hls(Formats.h264())
@@ -72,6 +73,22 @@ def create_hls_playlist():
     command = '''ffmpeg -y -i 2.mp4 -hls_time 5 -hls_key_info_file enc.keyinfo.txt -hls_playlist_type vod -hls_segment_filename "v%v/segment%d.ts" v%v/index.m3u8'''
     subprocess.run(command)
     atexit.register(print, "Hls playlist creation complete!")
+
+def slicer_integration():
+    hs = 'XH7HtD8tR3993IxfbcqX0uhKnc-mYksmPxqM2z1a'
+    hs = hs.encode('utf-8')
+    secret = '2adf9dd93ca0261ccd04dd879258ef35fa3ff17d'
+    timestamp = int(time.time())
+    endpoint = '/content_start'
+    cnonce = 123
+    sig_input = (endpoint + ':' + str(timestamp) + ':' + str(cnonce) + ':' + secret).encode('utf-8')
+    sig = base64.b64encode(hashlib.sha1(sig_input).digest())
+    body = json.dumps({"timestamp": timestamp,
+                       "cnonce": cnonce,
+                       "sig": sig})
+    request = urllib3.urlopen('http://localhost/hls:65009/' + endpoint, body)
+    response = json.loads(request.read())
+    assert response['error'] == 0
 
 
 # --------------------------------------------------input parameters from user #DRIVER CODE#
@@ -91,7 +108,6 @@ def playlist_driver():
         sys.exit(0)
 
 
-
 user_input = int(input("Please enter your preference: "))
 if user_input == 1:
     print('You selected video conversion to DASH format. Please wait while the file is being converted...')
@@ -102,4 +118,38 @@ if user_input == 2:
     print('You selected video conversion to HLS format. Please wait while the file is being converted...')
     video_to_hls()
     playlist_driver()
+
+
+# ------------------------------------------------------RESPONSES
+# LIST of ads to be inserted
+#
+# {
+# 	"breaks": [{
+# 			"age": 19,
+# 			"id": 2,
+# 			"timecode": "01:01:45;00",
+# 			"type": 5,
+# 			"type_str": "content start"
+# 		}, {
+# 			"age": 27,
+# 			"id": 1,
+# 			"timecode": "01:01:50;00",
+# 			"type": 5,
+# 			"type_str": "content start"
+# 		}
+# 	],
+# 	"error": 0
+# }
+#
+# AD_POD start response
+#
+# {
+# 	"start_timecode": "00:15:21;09"
+# }
+#
+# AD_POD end response
+#
+# {
+# 	"start_timecode": "00:15:21;09"
+# }
 
